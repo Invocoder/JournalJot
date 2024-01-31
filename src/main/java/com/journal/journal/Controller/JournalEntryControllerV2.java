@@ -6,6 +6,8 @@ import com.journal.journal.entities.JournalEntry;
 import com.journal.journal.services.JournalEntryService;
 import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -23,38 +25,54 @@ public class JournalEntryControllerV2 {
 
     //@GetMapping("/feed")
     @GetMapping
-    public List<JournalEntry> getAll() {
-        return journalEntryService.getAll();
+    public ResponseEntity<?> getAll() {
+        List<JournalEntry> all = journalEntryService.getAll();
+        if(all!=null && !all.isEmpty())
+        {
+            return new ResponseEntity<>(all, HttpStatus.OK);
+        }
+        return new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
 
     @PostMapping
-    public JournalEntry createEntry(@RequestBody JournalEntry userEntry) {
-        userEntry.setDate(LocalDateTime.now());
-        journalEntryService.saveEntry(userEntry);
-        return userEntry;
+    public ResponseEntity<JournalEntry> createEntry(@RequestBody JournalEntry userEntry) {
+        try {
+            userEntry.setDate(LocalDateTime.now());
+            journalEntryService.saveEntry(userEntry);
+            return new ResponseEntity<>(userEntry, HttpStatus.CREATED);
+        } catch (Exception e)
+        {
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        }
     }
 
     @GetMapping("id/{myId}")
-    public JournalEntry getEntryById(@PathVariable ObjectId myId) {
-        return journalEntryService.findById(myId).orElse(null);
+    public ResponseEntity<JournalEntry> getEntryById(@PathVariable ObjectId myId) {
+        Optional<JournalEntry> journalEntry = journalEntryService.findById(myId);
+        if(journalEntry.isPresent())
+        {
+            return new ResponseEntity<>(journalEntry.get(), HttpStatus.OK);
+        }
+            return new ResponseEntity<>(HttpStatus.NOT_FOUND);
 
     }
 
     @DeleteMapping("id/{myId}")
-    public boolean deleteEntryById(@PathVariable ObjectId myId) {
+    public ResponseEntity<?> deleteEntryById(@PathVariable ObjectId myId) {
         journalEntryService.deleteById(myId);
-        return true;
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     @PutMapping("id/{id}")
-    private JournalEntry updateEntryById(@PathVariable ObjectId id, @RequestBody JournalEntry newEntry) {
+    private ResponseEntity<JournalEntry> updateEntryById(@PathVariable ObjectId id, @RequestBody JournalEntry newEntry) {
         JournalEntry oldEntry = journalEntryService.findById(id).orElse(null);
         if (oldEntry!=null)
         {
             oldEntry.setTitle(newEntry.getTitle()!=null && !newEntry.getTitle().isEmpty() ? newEntry.getTitle() : oldEntry.getTitle());
             oldEntry.setContent(newEntry.getContent()!=null && !newEntry.getTitle().isEmpty() ? newEntry.getContent() : oldEntry.getContent());
+            journalEntryService.saveEntry(oldEntry);
+            return new ResponseEntity<>(oldEntry, HttpStatus.OK);
         }
-        journalEntryService.saveEntry(oldEntry);
-        return oldEntry;
+      return new ResponseEntity<>(HttpStatus.NOT_FOUND);
     }
 }
